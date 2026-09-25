@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>NCX 2026 Cyberdrill Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">ข้ามไปยังเนื้อหา</a>
+  <aside class="sidebar" aria-label="เมนูหลัก">
+    <div class="brand"><span class="brand-mark">N</span><div><strong>NCX 2026</strong><small>Cyberdrill Analysis</small></div></div>
+    <nav>
+      <a class="active" href="#overview"><span>◫</span>ภาพรวม</a>
+      <a href="#story"><span>◎</span>ลำดับเหตุการณ์</a>
+      <a href="#activity"><span>≡</span>กิจกรรมทั้งหมด</a>
+      <a href="#quiz"><span>✓</span>แบบทดสอบ</a>
+    </nav>
+    <div class="source-note"><span class="live-dot"></span>ข้อมูลจาก Excel<br><small id="source-name">ยังไม่ได้อัปโหลด ZIP</small></div>
+  </aside>
+
+  <main id="main">
+    <header class="topbar">
+      <button id="menu-button" class="icon-button menu-button" aria-label="เปิดเมนู">☰</button>
+      <div><p class="eyebrow">NCX2026 · PRE-EXERCISE</p><h1>ภาพรวมการตอบสนองเหตุการณ์</h1></div>
+      <input id="zip-input" type="file" accept=".zip,application/zip" hidden>
+      <button id="zip-button" class="upload-button"><span>↑</span> อัปโหลด ZIP</button>
+      <div class="event-date"><span id="event-day">—</span><div id="event-month">รอข้อมูล<small id="event-year">อัปโหลด ZIP</small></div></div>
+    </header>
+
+    <section id="overview" class="section hero">
+      <div class="hero-copy">
+        <span class="status-pill">● EXERCISE DATA</span>
+        <h2>มองเห็นทุกการตอบสนอง<br>ในหน้าจอเดียว</h2>
+        <p>สรุปกิจกรรมจาก Social, Chat, Mail และ Quiz พร้อมค้นหาและกรองตามหน่วยงาน ผู้เข้าร่วม และช่วงเวลา</p>
+      </div>
+      <div class="hero-signal" aria-hidden="true"><div class="ring ring-one"></div><div class="ring ring-two"></div><div class="radar"></div><span>NCX</span></div>
+    </section>
+
+    <section class="metrics" aria-label="ตัวชี้วัดหลัก">
+      <article><span class="metric-icon cyan">↗</span><div><small>กิจกรรมทั้งหมด</small><strong id="metric-events">—</strong><em>4 ช่องทาง</em></div></article>
+      <article><span class="metric-icon violet">⌂</span><div><small>หน่วยงานที่เข้าร่วม</small><strong id="metric-orgs">—</strong><em>หน่วยงาน</em></div></article>
+      <article><span class="metric-icon green">◉</span><div><small>ผู้มีส่วนร่วม</small><strong id="metric-people">—</strong><em>บัญชีผู้ใช้</em></div></article>
+      <article><span class="metric-icon amber">▧</span><div><small>ไฟล์แนบ</small><strong id="metric-files">—</strong><em>รายการกิจกรรม</em></div></article>
+    </section>
+
+    <section class="grid two-col">
+      <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">CHANNEL MIX</p><h3>กิจกรรมแยกตามช่องทาง</h3></div><span class="panel-total" id="channel-total"></span></div>
+        <div id="channel-chart" class="bar-chart"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-heading"><div><p class="eyebrow">TOP ORGANIZATIONS</p><h3>หน่วยงานที่มีกิจกรรมสูงสุด</h3></div></div>
+        <ol id="top-orgs" class="ranking"></ol>
+      </article>
+    </section>
+
+    <section class="panel timeline-panel">
+      <div class="panel-heading"><div><p class="eyebrow">ACTIVITY PULSE</p><h3>ความหนาแน่นของกิจกรรมตามเวลา</h3></div><span id="timeline-range">ทุกช่วงเวลา</span></div>
+      <div id="time-chart" class="time-chart" aria-label="กราฟกิจกรรมตามเวลา"></div>
+    </section>
+
+    <section id="story" class="section-block">
+      <div class="section-title"><div><p class="eyebrow">SCENARIO STORYLINE</p><h2>ลำดับสถานการณ์จำลอง</h2></div><p>เลือกภาพเพื่อเปิดดูรายละเอียดขนาดเต็ม</p></div>
+      <div id="story-grid" class="story-grid"></div>
+    </section>
+
+    <section id="activity" class="section-block">
+      <div class="section-title"><div><p class="eyebrow">ACTIVITY EXPLORER</p><h2>ค้นหาและตรวจสอบกิจกรรม</h2></div><p id="result-count"></p></div>
+      <div class="filter-panel">
+        <label class="search"><span>⌕</span><input id="search" type="search" placeholder="ค้นหาข้อความ บุคคล หรือหน่วยงาน…"></label>
+        <div id="channel-tabs" class="tabs" role="group" aria-label="กรองช่องทาง">
+          <button class="active" data-channel="all">ทั้งหมด</button><button data-channel="social">Social</button><button data-channel="chat">Chat</button><button data-channel="mail">Mail</button><button data-channel="quiz">Quiz</button>
+        </div>
+        <div class="select-row">
+          <label>หน่วยงาน<select id="org-filter"><option value="">ทุกหน่วยงาน</option></select></label>
+          <label>ผู้ส่ง (Email)<select id="sender-filter" disabled><option value="">ผู้ส่งทั้งหมด</option></select></label>
+          <label>บทบาท<select id="role-filter"><option value="">ทุกบทบาท</option></select></label>
+          <label>วันที่<select id="date-filter"><option value="">ทุกวันในกรอบเวลา</option></select></label>
+          <label>ตั้งแต่<input id="time-from" type="time"></label>
+          <label>ถึง<input id="time-to" type="time"></label>
+          <button id="reset-filter" class="reset-button">ล้างตัวกรอง</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>เวลา</th><th>ช่องทาง</th><th>หน่วยงาน / ผู้ส่ง</th><th>รายละเอียด</th><th>ไฟล์แนบ</th></tr></thead>
+          <tbody id="activity-body"></tbody>
+        </table>
+        <div id="empty-state" class="empty-state" hidden>ไม่พบกิจกรรมที่ตรงกับตัวกรอง</div>
+      </div>
+      <button id="load-more" class="load-more">แสดงเพิ่ม</button>
+    </section>
+
+    <section id="quiz" class="section-block">
+      <div class="section-title"><div><p class="eyebrow">QUIZ PARTICIPATION</p><h2>ภาพรวมการตอบแบบทดสอบ</h2></div><p>สรุปจากคำตอบที่ส่งเข้าสู่ระบบ</p></div>
+      <div id="quiz-grid" class="quiz-grid"></div>
+      <div class="quiz-detail-panel">
+        <div class="quiz-detail-heading"><div><p class="eyebrow">ANSWER DETAILS</p><h3>รายละเอียดผู้ตอบและคำตอบ</h3></div><p id="quiz-result-count"></p></div>
+        <div class="quiz-filters">
+          <label class="search"><span>⌕</span><input id="quiz-search" type="search" placeholder="ค้นหาผู้ตอบ หน่วยงาน หรือคำตอบ…"></label>
+          <label>ข้อคำถาม<select id="quiz-question-filter"><option value="">ทุกข้อ</option></select></label>
+          <label>หน่วยงาน<select id="quiz-org-filter"><option value="">ทุกหน่วยงาน</option></select></label>
+        </div>
+        <div class="table-wrap quiz-table-wrap">
+          <table class="quiz-table">
+            <thead><tr><th>เวลา</th><th>ข้อคำถาม</th><th>รหัส</th><th>หน่วยงาน</th><th>ผู้ตอบ</th><th>บทบาท</th><th>ตัวเลือกที่ตอบ</th><th>คำอธิบายเพิ่มเติม</th></tr></thead>
+            <tbody id="quiz-body"></tbody>
+          </table>
+          <div id="quiz-empty-state" class="empty-state" hidden>ไม่พบคำตอบที่ตรงกับตัวกรอง</div>
+        </div>
+        <button id="quiz-load-more" class="load-more">แสดงคำตอบเพิ่ม</button>
+      </div>
+    </section>
+
+    <footer>NCX 2026 Cyberdrill Dashboard · สร้างจากข้อมูลกิจกรรมในไฟล์ Excel</footer>
+  </main>
+
+  <dialog id="image-dialog">
+    <button class="dialog-close" aria-label="ปิด">×</button>
+    <img id="dialog-image" alt="">
+    <p id="dialog-caption"></p>
+  </dialog>
+  <div id="upload-status" class="upload-status" role="status" aria-live="polite" hidden></div>
+  <script src="app.js"></script>
+  <script src="zip-loader.js"></script>
+</body>
+</html>
