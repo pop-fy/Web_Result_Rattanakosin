@@ -15,6 +15,7 @@
       <a class="active" href="#overview"><span>◫</span>ภาพรวม</a>
       <a href="#story"><span>◎</span>ลำดับเหตุการณ์</a>
       <a href="#activity"><span>≡</span>กิจกรรมทั้งหมด</a>
+      <a href="#competency"><span>◆</span>สมรรถนะ</a>
       <a href="#quiz"><span>✓</span>แบบทดสอบ</a>
     </nav>
     <div class="source-note"><span class="live-dot"></span>ข้อมูลจาก Excel<br><small id="source-name">ยังไม่ได้อัปโหลด ZIP</small></div>
@@ -101,6 +102,29 @@
         <div id="empty-state" class="empty-state" hidden>ไม่พบกิจกรรมที่ตรงกับตัวกรอง</div>
       </div>
       <button id="load-more" class="load-more">แสดงเพิ่ม</button>
+    </section>
+
+    <section id="competency" class="section-block">
+      <div class="section-title competency-title">
+        <div><p class="eyebrow">COMPETENCY ANALYSIS</p><h2>วิเคราะห์ข้อมูลตามสมรรถนะ</h2></div>
+        <button id="competency-export" class="primary-button" type="button">ส่งออก Excel</button>
+      </div>
+      <div class="filter-panel competency-filter">
+        <label>หน่วยงาน<select id="competency-org"><option value="">ทุกหน่วยงาน</option></select></label>
+        <label>ผู้ส่ง<select id="competency-sender" disabled><option value="">เลือกหน่วยงานก่อน</option></select></label>
+        <p>แก้ไข keyword ของแต่ละสมรรถนะได้ โดยคั่นแต่ละคำด้วยเครื่องหมายจุลภาค (,)</p>
+      </div>
+      <div id="competency-grid" class="competency-grid"></div>
+      <div class="competency-result-heading">
+        <h3>รายการที่พบจาก keyword</h3><p id="competency-result-count"></p>
+      </div>
+      <div class="table-wrap competency-table-wrap">
+        <table class="competency-table">
+          <thead><tr><th>สมรรถนะ</th><th>Keyword ที่พบ</th><th>เวลา</th><th>ช่องทาง</th><th>หน่วยงาน / ผู้ส่ง</th><th>รายละเอียด</th></tr></thead>
+          <tbody id="competency-body"></tbody>
+        </table>
+        <div id="competency-empty-state" class="empty-state" hidden>ไม่พบข้อมูลที่ตรงกับ keyword</div>
+      </div>
     </section>
 
     <section id="quiz" class="section-block">

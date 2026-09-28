@@ -10,12 +10,19 @@
     mail: { label: 'Mail', color: '#e8a832' },
     quiz: { label: 'Quiz', color: '#27a971' }
   };
+  const competencyDefinitions = [
+    { name:'สมรรถนะที่ 1 Impact Analysis', color:'#10b8c8', keywords:'regulator1, ขอให้สรุปการดำเนินการด้านการตรวจจับ วิเคราะห์ และควบคุมเหตุ' },
+    { name:'สมรรถนะที่ 2 Crisis Declaration Criteria and Action', color:'#8069e8', keywords:'ขอให้ประเมินผลกระทบ พิจารณาประกาศภาวะวิกฤติ และดำเนินการแจ้งเหตุ' },
+    { name:'สมรรถนะที่ 3 Containment Strategy', color:'#e8a832', keywords:'regulator2, Inject 6, Inject 5' },
+    { name:'สมรรถนะที่ 4 Crisis Communication', color:'#27a971', keywords:'ขอให้พิจารณาแนวทางการสื่อสารสถานการณ์ต่อสาธารณะ' }
+  ];
   const extensionOf = name => String(name || '').split('.').pop().toLowerCase();
   const isImage = asset => asset && (String(asset.type || '').startsWith('image/') || ['png','jpg','jpeg','gif','webp'].includes(extensionOf(asset.name)));
   const isPdf = asset => asset && (asset.type === 'application/pdf' || extensionOf(asset.name) === 'pdf');
   const $ = id => document.getElementById(id);
   const state = { channel: 'all', search: '', org: '', sender: '', role: '', date: '', from: '', to: '', limit: 80 };
   const quizState = { search: '', question: '', org: '', limit: 100 };
+  const competencyState = { org: '', sender: '' };
   const formatNumber = n => new Intl.NumberFormat('th-TH').format(n);
   const timeOf = value => value ? value.slice(11, 16) : '—';
   const dateOf = value => value ? value.slice(0, 10) : '';
@@ -26,6 +33,42 @@
   };
   const unique = (items, selector) => new Set(items.map(selector).filter(Boolean)).size;
   const normalized = value => String(value || '').trim().toLocaleLowerCase('th');
+  const parseKeywords = value => [...new Set(String(value || '').split(',').map(normalized).filter(Boolean))];
+  const keywordMatches = (text, keyword) => /^[a-z0-9 ]+$/i.test(keyword)
+    ? new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')}\\b`, 'i').test(text)
+    : text.includes(keyword);
+  function classifyCompetencies(items, definitions = competencyDefinitions) {
+    return items.flatMap(row => {
+      const text = normalized(row.content);
+      return definitions.flatMap(definition => {
+        const matchedKeywords = parseKeywords(definition.keywords).filter(keyword => keywordMatches(text, keyword));
+        return matchedKeywords.length ? [{ row, definition, matchedKeywords }] : [];
+      });
+    });
+  }
+  const sortCompetencyMatches = matches => [...matches].sort((a, b) =>
+    a.definition.name.localeCompare(b.definition.name, 'th', { numeric:true })
+    || String(a.row.timestamp || '').localeCompare(String(b.row.timestamp || ''))
+  );
+  function competencyExportRecords(matches) {
+    const groups = new Map();
+    matches.forEach(match => {
+      const key = JSON.stringify([match.row.org || '', match.row.person || '', match.row.participantRole || '']);
+      if (!groups.has(key)) groups.set(key, { row:match.row, matches:[] });
+      groups.get(key).matches.push(match);
+    });
+    return [...groups.values()]
+      .sort((a, b) => [a.row.org, a.row.person, a.row.participantRole].join('|').localeCompare([b.row.org, b.row.person, b.row.participantRole].join('|'), 'th'))
+      .flatMap(({ row, matches: groupMatches }, index, all) => [
+        ['หน่วยงาน', row.org || '', 'ผู้ส่ง', row.person || '', 'บทบาท', row.participantRole || ''],
+        ['สมรรถนะ', 'Keyword', 'รายละเอียด', 'ชื่อไฟล์แนบ'],
+        ...sortCompetencyMatches(groupMatches).map(({ row: item, definition, matchedKeywords }) => [
+          definition.name, matchedKeywords.join(', '), item.content || '', item.attachment || ''
+        ]),
+        ...(index < all.length - 1 ? [[]] : [])
+      ]);
+  }
+  const matchesCompetencyScope = (row, filters) => (!filters.org || row.org === filters.org) && (!filters.sender || row.person === filters.sender);
   function matchesActivityFilters(row, filters) {
     const time = timeOf(row.timestamp);
     const needle = normalized(filters.search);
@@ -317,6 +360,95 @@
     $('load-more').hidden = state.limit >= items.length;
   }
 
+  function competencyRows() {
+    const scoped = rows.filter(row => matchesCompetencyScope(row, competencyState));
+    return { scoped, matches: classifyCompetencies(scoped) };
+  }
+
+  function updateCompetencySenderOptions() {
+    const select = $('competency-sender');
+    select.length = 1;
+    competencyState.sender = '';
+    select.disabled = !competencyState.org;
+    select.options[0].textContent = select.disabled ? 'เลือกหน่วยงานก่อน' : 'ผู้ส่งทั้งหมด';
+    if (!select.disabled) setOptions(select, [...new Set(rows.filter(row => row.org === competencyState.org).map(row => row.person).filter(Boolean))]);
+    select.value = '';
+  }
+
+  function renderCompetencyCards() {
+    const grid = $('competency-grid');
+    grid.replaceChildren();
+    competencyDefinitions.forEach((definition, index) => {
+      const card = el('article', 'competency-card');
+      card.style.setProperty('--competency-color', definition.color);
+      card.dataset.index = index;
+      const heading = el('div', 'competency-card-heading');
+      heading.append(el('span', 'competency-number', `COMPETENCY ${String(index + 1).padStart(2, '0')}`), el('strong', 'competency-count', '0'));
+      const input = el('textarea', 'competency-keywords');
+      input.rows = 3;
+      input.value = definition.keywords;
+      input.setAttribute('aria-label', `Keyword สำหรับ${definition.name}`);
+      input.addEventListener('input', event => {
+        definition.keywords = event.target.value;
+        renderCompetencyResults();
+      });
+      card.append(heading, el('h3', '', definition.name), input, el('small', 'competency-ratio', '0% ของกิจกรรม'));
+      grid.append(card);
+    });
+  }
+
+  function renderCompetencyResults() {
+    const { scoped, matches } = competencyRows();
+    competencyDefinitions.forEach((definition, index) => {
+      const card = $(`competency-grid`).querySelector(`[data-index="${index}"]`);
+      const count = matches.filter(match => match.definition === definition).length;
+      card.querySelector('.competency-count').textContent = formatNumber(count);
+      card.querySelector('.competency-ratio').textContent = `${scoped.length ? Math.round(count / scoped.length * 100) : 0}% ของกิจกรรม`;
+    });
+    const body = $('competency-body');
+    body.replaceChildren();
+    matches.forEach(({ row, definition, matchedKeywords }) => {
+      const tr = el('tr');
+      const competencyCell = el('td');
+      const badge = el('span', 'competency-badge', definition.name);
+      badge.style.setProperty('--competency-color', definition.color);
+      competencyCell.append(badge);
+      const senderCell = el('td', 'sender');
+      senderCell.append(el('strong', '', row.org), el('small', '', `${row.person} · ${row.participantRole}`));
+      const detailCell = el('td', 'detail');
+      detailCell.append(expandableText(row.content));
+      tr.append(
+        competencyCell,
+        el('td', 'keyword-list', matchedKeywords.join(', ')),
+        el('td', '', dateTimeLabel(row.timestamp)),
+        el('td', '', meta[row.channel]?.label || row.channel),
+        senderCell,
+        detailCell
+      );
+      body.append(tr);
+    });
+    $('competency-result-count').textContent = `พบ ${formatNumber(matches.length)} รายการ จาก ${formatNumber(scoped.length)} กิจกรรม`;
+    $('competency-empty-state').hidden = matches.length > 0;
+    $('competency-export').disabled = matches.length === 0;
+  }
+
+  function exportCompetencies() {
+    const { matches } = competencyRows();
+    if (!matches.length) return;
+    const csvCell = value => {
+      const safe = String(value ?? '').replace(/^[=+\-@]/, match => `'${match}`);
+      return `"${safe.replaceAll('"', '""')}"`;
+    };
+    const records = competencyExportRecords(matches);
+    const blob = new Blob([`\ufeff${records.map(record => record.map(csvCell).join(',')).join('\r\n')}`], { type:'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const scope = [competencyState.org || 'all', competencyState.sender].filter(Boolean).join('-').replace(/[\\/:*?"<>|]/g, '-');
+    link.download = `competency-${scope}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href));
+  }
+
   function renderQuiz() {
     const groups = new Map();
     data.channels.quiz.forEach(r => {
@@ -416,6 +548,9 @@
     $('quiz-question-filter').addEventListener('change', event => { quizState.question = event.target.value; quizState.limit = 100; renderQuizDetails(); });
     $('quiz-org-filter').addEventListener('change', event => { quizState.org = event.target.value; quizState.limit = 100; renderQuizDetails(); });
     $('quiz-load-more').addEventListener('click', () => { quizState.limit += 100; renderQuizDetails(); });
+    $('competency-org').addEventListener('change', event => { competencyState.org = event.target.value; updateCompetencySenderOptions(); renderCompetencyResults(); });
+    $('competency-sender').addEventListener('change', event => { competencyState.sender = event.target.value; renderCompetencyResults(); });
+    $('competency-export').addEventListener('click', exportCompetencies);
   }
 
   function loadData(next) {
@@ -443,24 +578,29 @@
       const count = channel === 'all' ? rows.length : data.channels[channel].length;
       button.replaceChildren(document.createTextNode(label), el('span', 'tab-count', formatNumber(count)));
     });
-    $('org-filter').length = 1; $('role-filter').length = 1; $('date-filter').length = 1;
+    $('org-filter').length = 1; $('role-filter').length = 1; $('date-filter').length = 1; $('competency-org').length = 1; $('competency-sender').length = 1;
     $('quiz-question-filter').length = 1; $('quiz-org-filter').length = 1;
     const availableDates = [...new Set(rows.map(row => dateOf(row.timestamp)).filter(Boolean))].sort();
     setDateOptions($('date-filter'), availableDates);
     updateEventDate(availableDates);
     setOptions($('quiz-question-filter'), [...new Set(data.channels.quiz.map(row => row.quiz).filter(Boolean))]);
     setOptions($('quiz-org-filter'), [...new Set(data.channels.quiz.map(row => row.bank).filter(Boolean))]);
+    setOptions($('competency-org'), [...new Set(rows.map(row => row.org).filter(Boolean))]);
+    competencyState.org = '';
+    updateCompetencySenderOptions();
     resetFilters(false);
     updateActivityFilterOptions();
     $('source-name').textContent = data.source;
     renderStory();
+    renderCompetencyCards();
+    renderCompetencyResults();
     renderQuiz();
     renderQuizDetails();
     renderTable();
   }
 
   if (typeof module !== 'undefined') {
-    module.exports = { matchesActivityFilters };
+    module.exports = { matchesActivityFilters, parseKeywords, classifyCompetencies, competencyExportRecords, matchesCompetencyScope };
     return;
   }
   bindEvents();
