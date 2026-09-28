@@ -25,12 +25,40 @@
     return Number.isNaN(date.getTime()) ? '—' : new Intl.DateTimeFormat('th-TH', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }).format(date);
   };
   const unique = (items, selector) => new Set(items.map(selector).filter(Boolean)).size;
+  const normalized = value => String(value || '').trim().toLocaleLowerCase('th');
+  function matchesActivityFilters(row, filters) {
+    const time = timeOf(row.timestamp);
+    const needle = normalized(filters.search);
+    return (filters.channel === 'all' || row.channel === filters.channel)
+      && (!filters.org || normalized(row.org) === normalized(filters.org))
+      && (!filters.sender || normalized(row.person) === normalized(filters.sender))
+      && (!filters.role || normalized(row.participantRole) === normalized(filters.role))
+      && (!filters.date || dateOf(row.timestamp) === filters.date)
+      && ((!filters.from && !filters.to) || (time !== '—' && (!filters.from || time >= filters.from) && (!filters.to || time <= filters.to)))
+      && (!needle || Object.values(row).some(value => ['string', 'number'].includes(typeof value) && normalized(value).includes(needle)));
+  }
   const el = (tag, className, text) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
     if (text !== undefined) node.textContent = text;
     return node;
   };
+
+  function expandableText(text, className = '') {
+    const value = text || '—';
+    const wrapper = el('div', 'message-block');
+    wrapper.append(el('p', `message-copy ${className}`.trim(), value));
+    if (value.length > 320 || value.split('\n').length > 6) {
+      const toggle = el('button', 'message-toggle', 'ดูเพิ่มเติม');
+      toggle.type = 'button';
+      toggle.addEventListener('click', () => {
+        const expanded = wrapper.classList.toggle('expanded');
+        toggle.textContent = expanded ? 'ย่อข้อความ' : 'ดูเพิ่มเติม';
+      });
+      wrapper.append(toggle);
+    }
+    return wrapper;
+  }
 
   function syncFilterState() {
     state.search = $('search').value;
@@ -44,18 +72,7 @@
 
   function filteredRows() {
     syncFilterState();
-    const needle = state.search.toLocaleLowerCase('th');
-    return rows.filter(r => {
-      const time = timeOf(r.timestamp);
-      return (state.channel === 'all' || r.channel === state.channel)
-        && (!state.org || r.org === state.org)
-        && (!state.sender || r.person === state.sender)
-        && (!state.role || r.participantRole === state.role)
-        && (!state.date || dateOf(r.timestamp) === state.date)
-        && (!state.from || time >= state.from)
-        && (!state.to || time <= state.to)
-        && (!needle || [r.org, r.person, r.position, r.content, r.attachment, r['reply to'], r['reply to bank'], r['reply to subject']].some(v => String(v || '').toLocaleLowerCase('th').includes(needle)));
-    });
+    return rows.filter(row => matchesActivityFilters(row, state));
   }
 
   function setOptions(select, values) {
@@ -95,6 +112,21 @@
     select.value = '';
   }
 
+  function updateActivityFilterOptions() {
+    const scopedRows = rows.filter(row => state.channel === 'all' || row.channel === state.channel);
+    const update = (id, stateKey, values) => {
+      const select = $(id);
+      const current = state[stateKey];
+      select.length = 1;
+      setOptions(select, [...new Set(values.filter(Boolean))]);
+      state[stateKey] = values.includes(current) ? current : '';
+      select.value = state[stateKey];
+    };
+    update('org-filter', 'org', scopedRows.map(row => row.org));
+    update('role-filter', 'role', scopedRows.map(row => row.participantRole));
+    updateSenderOptions();
+  }
+
   function updateTimeBounds() {
     const times = rows.filter(row => !state.date || dateOf(row.timestamp) === state.date).map(row => timeOf(row.timestamp)).filter(time => time !== '—').sort();
     const from = $('time-from');
@@ -119,7 +151,7 @@
     $('metric-events').textContent = formatNumber(items.length);
     $('metric-orgs').textContent = formatNumber(unique(items.filter(r => r.org !== 'Command Center'), r => r.org));
     $('metric-people').textContent = formatNumber(unique(items, r => r.person));
-    $('metric-files').textContent = formatNumber(items.filter(r => r.attachment).length);
+    $('metric-files').textContent = formatNumber(items.filter(r => r.attachmentAsset).length);
   }
 
   function renderChannelChart(items = rows) {
@@ -196,7 +228,7 @@
     const wrapper = el('div', 'social-detail');
     const isComment = Boolean(row['reply to'] || row['reply to bank'] || row['reply to subject']);
     wrapper.append(el('span', `social-kind ${isComment ? 'comment' : 'post'}`, isComment ? 'ความคิดเห็น' : 'โพสต์'));
-    wrapper.append(el('p', 'social-message', row.message || '—'));
+    wrapper.append(expandableText(row.message, 'social-message'));
     if (isComment) {
       const context = el('div', 'reply-context');
       const target = [row['reply to'], row['reply to bank']].filter(Boolean).join(' · ');
@@ -240,7 +272,10 @@
     renderChannelChart(items);
     renderTopOrgs(items);
     renderTimeChart(items);
+    const activeFilters = [state.channel !== 'all', state.search, state.org, state.sender, state.role, state.date, state.from, state.to].filter(Boolean).length;
     $('result-count').textContent = `พบ ${formatNumber(items.length)} รายการ`;
+    $('reset-filter').disabled = activeFilters === 0;
+    $('reset-filter').textContent = activeFilters ? `ล้างตัวกรอง (${activeFilters})` : 'ล้างตัวกรอง';
     const body = $('activity-body');
     body.replaceChildren();
     items.slice(0, state.limit).forEach(r => {
@@ -253,11 +288,18 @@
       senderCell.append(el('strong', '', r.org), el('small', '', `${r.person} · ${r.participantRole}`));
       const detailCell = el('td', 'detail');
       if (r.channel === 'social') detailCell.append(socialDetail(r));
-      else detailCell.textContent = r.content || '—';
+      else detailCell.append(expandableText(r.content));
       tr.append(senderCell, detailCell);
       const attachmentCell = el('td');
       if (isImage(r.attachmentAsset)) {
-        const button = el('button', 'attachment-button', 'เปิดภาพ');
+        const button = el('button', 'attachment-button attachment-preview');
+        button.type = 'button';
+        const preview = el('img');
+        preview.src = r.attachmentAsset.path;
+        preview.alt = '';
+        preview.loading = 'lazy';
+        button.append(preview, el('span', '', r.attachment || 'เปิดภาพ'));
+        button.title = `เปิดภาพ ${r.attachment}`;
         button.addEventListener('click', () => openImage(r.attachmentAsset.path, r.attachment));
         attachmentCell.append(button);
       } else if (r.attachmentAsset) {
@@ -359,7 +401,7 @@
       const button = event.target.closest('button');
       if (!button) return;
       state.channel = button.dataset.channel;
-      updateSenderOptions();
+      updateActivityFilterOptions();
       state.limit = 80;
       [...$('channel-tabs').children].forEach(child => child.classList.toggle('active', child === button));
       renderTable();
@@ -392,16 +434,24 @@
       content: channel === 'quiz' ? [record.quiz, record['answer text'] || record['answer choice']].filter(Boolean).join(' — ') : (record.message || ''),
       attachmentAsset: record.attachment ? assetMap.get(`${channel}/${record.attachment}`.toLowerCase()) : null
     }))).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    const hasData = rows.length > 0;
+    $('empty-upload').hidden = hasData;
+    $('dashboard-content').hidden = !hasData;
+    document.querySelectorAll('#channel-tabs button').forEach(button => {
+      const channel = button.dataset.channel;
+      const label = channel === 'all' ? 'ทั้งหมด' : meta[channel].label;
+      const count = channel === 'all' ? rows.length : data.channels[channel].length;
+      button.replaceChildren(document.createTextNode(label), el('span', 'tab-count', formatNumber(count)));
+    });
     $('org-filter').length = 1; $('role-filter').length = 1; $('date-filter').length = 1;
     $('quiz-question-filter').length = 1; $('quiz-org-filter').length = 1;
-    setOptions($('org-filter'), [...new Set(rows.map(row => row.org).filter(Boolean))]);
-    setOptions($('role-filter'), [...new Set(rows.map(row => row.participantRole).filter(Boolean))]);
     const availableDates = [...new Set(rows.map(row => dateOf(row.timestamp)).filter(Boolean))].sort();
     setDateOptions($('date-filter'), availableDates);
     updateEventDate(availableDates);
     setOptions($('quiz-question-filter'), [...new Set(data.channels.quiz.map(row => row.quiz).filter(Boolean))]);
     setOptions($('quiz-org-filter'), [...new Set(data.channels.quiz.map(row => row.bank).filter(Boolean))]);
     resetFilters(false);
+    updateActivityFilterOptions();
     $('source-name').textContent = data.source;
     renderStory();
     renderQuiz();
@@ -409,6 +459,10 @@
     renderTable();
   }
 
+  if (typeof module !== 'undefined') {
+    module.exports = { matchesActivityFilters };
+    return;
+  }
   bindEvents();
   window.loadCyberdrillData = loadData;
   loadData({ source:'ยังไม่ได้อัปโหลด ZIP', assets:[], schedule:[], channels:{ social:[], chat:[], mail:[], quiz:[] } });

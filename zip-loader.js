@@ -264,6 +264,8 @@
   function bindUpload() {
     const input = document.getElementById('zip-input');
     const button = document.getElementById('zip-button');
+    const emptyButton = document.getElementById('empty-zip-button');
+    const dropzone = document.getElementById('empty-upload');
     const status = document.getElementById('upload-status');
     let statusTimer;
     const show = (message, type = '') => {
@@ -273,11 +275,10 @@
       status.hidden = false;
       if (type) statusTimer = setTimeout(() => { status.hidden = true; }, 7000);
     };
-    button.addEventListener('click', () => input.click());
-    input.addEventListener('change', async () => {
-      const file = input.files[0];
+    const processFile = async file => {
       if (!file) return;
       button.disabled = true;
+      emptyButton.disabled = true;
       show(`กำลังอ่าน ${file.name}… ข้อมูลยังอยู่ในเครื่องนี้เท่านั้น`);
       try {
         const payload = await parseUpload(file);
@@ -290,8 +291,25 @@
         console.error(error);
       } finally {
         button.disabled = false;
+        emptyButton.disabled = false;
         input.value = '';
       }
+    };
+    button.addEventListener('click', () => input.click());
+    emptyButton.addEventListener('click', () => input.click());
+    input.addEventListener('change', () => processFile(input.files[0]));
+    ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, event => {
+      event.preventDefault();
+      dropzone.classList.add('dragging');
+    }));
+    ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, event => {
+      event.preventDefault();
+      dropzone.classList.remove('dragging');
+    }));
+    dropzone.addEventListener('drop', event => processFile(event.dataTransfer.files[0]));
+    dropzone.addEventListener('keydown', event => {
+      if (event.target !== dropzone) return;
+      if (event.key === 'Enter' || event.key === ' ') input.click();
     });
   }
 

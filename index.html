@@ -23,12 +23,22 @@
   <main id="main">
     <header class="topbar">
       <button id="menu-button" class="icon-button menu-button" aria-label="เปิดเมนู">☰</button>
-      <div><p class="eyebrow">NCX2026 · PRE-EXERCISE</p><h1>ภาพรวมการตอบสนองเหตุการณ์</h1></div>
+      <div><p class="eyebrow">NCX2026 · CYBERDRILL</p><h1>ภาพรวมการตอบสนองเหตุการณ์</h1></div>
       <input id="zip-input" type="file" accept=".zip,application/zip" hidden>
       <button id="zip-button" class="upload-button"><span>↑</span> อัปโหลด ZIP</button>
       <div class="event-date"><span id="event-day">—</span><div id="event-month">รอข้อมูล<small id="event-year">อัปโหลด ZIP</small></div></div>
     </header>
 
+    <section id="empty-upload" class="empty-upload" tabindex="0" aria-label="อัปโหลดไฟล์ ZIP">
+      <div class="upload-illustration" aria-hidden="true">↑</div>
+      <p class="eyebrow">GET STARTED</p>
+      <h2>เริ่มดูผลการฝึก</h2>
+      <p>ลากไฟล์ ZIP มาวางที่นี่ หรือเลือกไฟล์จากเครื่อง</p>
+      <button id="empty-zip-button" class="primary-button">เลือกไฟล์ ZIP</button>
+      <small>รองรับไฟล์ขนาดใหญ่ · ข้อมูลจะอยู่ในเบราว์เซอร์ของคุณเท่านั้น</small>
+    </section>
+
+    <div id="dashboard-content" hidden>
     <section id="overview" class="section hero">
       <div class="hero-copy">
         <span class="status-pill">● EXERCISE DATA</span>
@@ -42,7 +52,7 @@
       <article><span class="metric-icon cyan">↗</span><div><small>กิจกรรมทั้งหมด</small><strong id="metric-events">—</strong><em>4 ช่องทาง</em></div></article>
       <article><span class="metric-icon violet">⌂</span><div><small>หน่วยงานที่เข้าร่วม</small><strong id="metric-orgs">—</strong><em>หน่วยงาน</em></div></article>
       <article><span class="metric-icon green">◉</span><div><small>ผู้มีส่วนร่วม</small><strong id="metric-people">—</strong><em>บัญชีผู้ใช้</em></div></article>
-      <article><span class="metric-icon amber">▧</span><div><small>ไฟล์แนบ</small><strong id="metric-files">—</strong><em>รายการกิจกรรม</em></div></article>
+      <article><span class="metric-icon amber">▧</span><div><small>ไฟล์แนบที่เปิดได้</small><strong id="metric-files">—</strong><em>ไฟล์ที่พบใน ZIP</em></div></article>
     </section>
 
     <section class="grid two-col">
@@ -113,6 +123,7 @@
         <button id="quiz-load-more" class="load-more">แสดงคำตอบเพิ่ม</button>
       </div>
     </section>
+    </div>
 
     <footer>NCX 2026 Cyberdrill Dashboard · สร้างจากข้อมูลกิจกรรมในไฟล์ Excel</footer>
   </main>
